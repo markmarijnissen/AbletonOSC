@@ -1,4 +1,5 @@
 import Live
+import json
 from functools import partial
 from typing import Tuple, Any
 
@@ -59,6 +60,7 @@ class SongHandler(AbletonOSCHandler):
             "punch_out",
             "record_mode",
             "session_record",
+            "session_automation_record",
             "signature_denominator",
             "signature_numerator",
             "tempo"
@@ -86,13 +88,14 @@ class SongHandler(AbletonOSCHandler):
         self.osc_server.add_handler("/live/song/get/num_tracks", lambda _: (len(self.song.tracks),))
 
         def song_get_track_names(params):
+            tracks = list(self.song.tracks + [ self.song.master_track ])
             if len(params) == 0:
-                track_index_min, track_index_max = 0, len(self.song.tracks)
+                track_index_min, track_index_max = 0, len(tracks)
             else:
                 track_index_min, track_index_max = params
                 if track_index_max == -1:
-                    track_index_max = len(self.song.tracks)
-            return tuple(self.song.tracks[index].name for index in range(track_index_min, track_index_max))
+                    track_index_max = len(tracks)
+            return tuple(tracks[index].name for index in range(track_index_min, track_index_max))
         self.osc_server.add_handler("/live/song/get/track_names", song_get_track_names)
 
         def song_get_track_data(params):
@@ -112,11 +115,12 @@ class SongHandler(AbletonOSCHandler):
             track_index_min, track_index_max, *properties = params
             self.logger.info("Getting track data: %s (tracks %d..%d)" %
                              (properties, track_index_min, track_index_max))
+            tracks = list(self.song.tracks + [ self.song.master_track])
             if track_index_max == -1:
-                track_index_max = len(self.song.tracks)
+                track_index_max = len(tracks)
             rv = []
             for track_index in range(track_index_min, track_index_max):
-                track = self.song.tracks[track_index]
+                track = tracks[track_index]
                 for prop in properties:
                     obj, property_name = prop.split(".")
                     if obj == "track":
@@ -128,7 +132,7 @@ class SongHandler(AbletonOSCHandler):
                                 #--------------------------------------------------------------------------------
                                 # Map Track objects to their track_index to return via OSC
                                 #--------------------------------------------------------------------------------
-                                value = list(self.song.tracks).index(value)
+                                value = list(tracks).index(value)
                         rv.append(value)
                     elif obj == "clip":
                         for clip_slot in track.clip_slots:
@@ -143,6 +147,41 @@ class SongHandler(AbletonOSCHandler):
                         self.logger.error("Unknown object identifier in get/track_data: %s" % obj)
             return tuple(rv)
         self.osc_server.add_handler("/live/song/get/track_data", song_get_track_data)
+
+
+        def song_export_structure(params):
+            path = "/tmp/abletonosc-song-structure.json"
+
+            tracks = []
+            for track_index, track in enumerate(self.song.tracks):
+                group_track = None
+                if track.group_track is not None:
+                    group_track = list(self.song.tracks).index(track.group_track)
+                track_data = {
+                    "index": track_index,
+                    "name": track.name,
+                    "is_foldable": track.is_foldable,
+                    "group_track": group_track,
+                    "clips": []
+                }
+                for clip_index, clip_slot in enumerate(track.clip_slots):
+                    if clip_slot.clip:
+                        clip_data = {
+                            "index": clip_index,
+                            "name": clip_slot.clip.name,
+                            "length": clip_slot.clip.length,
+                        }
+                        track_data["clips"].append(clip_data)
+                tracks.append(track_data)
+            song = {
+                "tracks": tracks
+            }
+
+            fd = open(path, "w")
+            json.dump(song, fd)
+            fd.close()
+            return (1,)
+        self.osc_server.add_handler("/live/song/export/structure", song_export_structure)
 
         #--------------------------------------------------------------------------------
         # Callbacks for Song: Scene properties

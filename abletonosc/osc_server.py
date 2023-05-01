@@ -88,6 +88,7 @@ class OSCServer:
         Synchronously process all data queued on the OSC socket.
         """
         try:
+            repeats = 0
             while True:
                 #--------------------------------------------------------------------------------
                 # Loop until no more data is available.
