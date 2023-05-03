@@ -77,7 +77,9 @@ class ClipHandler(AbletonOSCHandler):
             "is_playing",
             "is_recording",
             "length",
-            "playing_position"
+            "playing_position",
+            "start_time",
+            "end_time"
         ]
         properties_rw = [
             "color",
@@ -86,6 +88,10 @@ class ClipHandler(AbletonOSCHandler):
             "pitch_coarse",
             "pitch_fine",
             "looping",
+            "legato",
+            "start_marker",
+            "end_marker",
+            "position",
             "loop_start",
             "loop_end",
             "warping"
@@ -129,6 +135,15 @@ class ClipHandler(AbletonOSCHandler):
         self.osc_server.add_handler("/live/clip/get/notes", create_clip_callback(clip_get_notes))
         self.osc_server.add_handler("/live/clip/add/notes", create_clip_callback(clip_add_notes))
         self.osc_server.add_handler("/live/clip/remove/notes", create_clip_callback(clip_remove_notes))
+
+   
+        def duplicate_clip(params: Tuple[Any] = ()):
+            ax, ay, bx, by = int(params[0]), int(params[1]), int(params[2]), int(params[3])
+            source = self.song.tracks[ax].clip_slots[ay]
+            dest = self.song.tracks[bx].clip_slots[by]
+            source.duplicate_clip_to(dest)
+
+        self.osc_server.add_handler('/live/clip/duplicate', duplicate_clip)
 
         # TODO: tidy up and generalise this
         self.clip_listeners = {}

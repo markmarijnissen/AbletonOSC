@@ -119,6 +119,12 @@ class SongHandler(AbletonOSCHandler):
             if track_index_max == -1:
                 track_index_max = len(tracks)
             rv = []
+            if properties[0] == "meta":
+                rv.append(",".join(properties))
+                properties.pop(0)
+                rv.append(len(tracks))
+                rv.append(len(tracks[0].clip_slots))
+
             for track_index in range(track_index_min, track_index_max):
                 track = tracks[track_index]
                 for prop in properties:
@@ -143,6 +149,8 @@ class SongHandler(AbletonOSCHandler):
                     elif obj == "device":
                         for device in track.devices:
                             rv.append(getattr(device, property_name))
+                    elif obj == "properties":
+                        rv.append(",".join(properties))
                     else:
                         self.logger.error("Unknown object identifier in get/track_data: %s" % obj)
             return tuple(rv)
