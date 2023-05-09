@@ -13,7 +13,7 @@ class Manager(ControlSurface):
     def __init__(self, c_instance):
         ControlSurface.__init__(self, c_instance)
 
-        self.log_level = "info"
+        self.log_level = "critical"
         self.start_logging()
 
         self.handlers = []
